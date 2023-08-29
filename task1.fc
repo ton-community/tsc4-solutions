@@ -1,0 +1,33 @@
+{-
+  TASK 1 - Find branch of the cell tree
+  Write the method that will find a branch of the tree by comparing its
+  hash with the hash received in the first parameter. When the algorithm finds
+  the subtree (branch) whose hash equals the received hash, the root cell of
+  this branch should be returned. Return empty cell if the branch is not found.
+-}
+
+() recv_internal() {
+}
+
+forall X -> int is_null (X x) asm "ISNULL";
+forall X -> (tuple, ()) push_back (tuple tail, X head) asm "CONS";
+forall X -> (tuple, (X)) pop_back (tuple t) asm "UNCONS";
+forall X -> X null() asm "PUSHNULL";
+
+(cell) find_branch_by_hash (int hash, cell tree) method_id {
+  tuple stack = null();
+  stack~push_back(tree);
+  var result = begin_cell().end_cell();
+  while (~ stack.is_null()) {
+    cell s = stack~pop_back();
+    int s_hash = s.cell_hash();
+    if (s_hash == hash){
+      result = s;
+    }
+    slice s_unpacked = s.begin_parse();
+    repeat (s_unpacked.slice_refs()) {
+      stack~push_back(s_unpacked~load_ref());
+    }
+  }
+  return result;
+}
