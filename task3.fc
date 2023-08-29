@@ -1,0 +1,104 @@
+#include "imports/stdlib.fc";
+
+{- 
+  TASK 3 - Find and replace binary substring
+  Binary string is represented as a cell linked list: string splitted to chunks,
+  first chunk stored to the root cell, next one to the cell in ref and so on;
+  each cell can have only one ref. 
+  Write the method that find and replaces one flags in the binary string
+  with another value. Flags and values can be can be of any length, but
+  strictly up to 128 bits. The method must replace every flag it finds.
+  Flag and the value to be replaced is guaranteed to be greater than 0.
+  Lets give a simple example. We have the target flag 101110101 and the value
+  to be written 111111111 as inputs, and a linked list of cells, in which the bit
+  value of the first cell ends with ...10100001011, and in the ref we have cell that
+  starts with 10101000111111...
+  The output should be a linked list where the first
+  cell ends with ...10100001111, and the second cell starts with 11111000111111...
+-}
+
+() recv_internal() {
+}
+
+int ubitsize(int x) asm "UBITSIZE";
+
+(tuple, builder) store(tuple bt, builder current, int x, int sz) {
+  if (current.builder_bits() + sz <= 1023) {
+    return (bt, current.store_uint(x, sz));
+  }
+
+  int left = 1023 - current.builder_bits();
+  int cut = sz - left;
+  current = current.store_uint(x >> cut, left);
+  bt = cons(current, bt);
+  current = begin_cell().store_uint(x & ((1 << cut) - 1), cut);
+  return (bt, current);
+}
+
+cell finish(tuple bt, builder current) {
+  if (current.builder_bits() == 0) {
+    if (null?(bt)) {
+      return current.end_cell();
+    }
+
+    (current, bt) = uncons(bt);
+  }
+
+  cell tree = current.end_cell();
+  while (~ null?(bt)) {
+    (current, bt) = uncons(bt);
+    tree = current.store_ref(tree).end_cell();
+  }
+
+  return tree;
+}
+
+;; testable
+cell find_and_replace(int find, int replace, cell linked_list) method_id {
+  int find_size = find.ubitsize();
+  int replace_size = replace.ubitsize();
+  slice main = linked_list.begin_parse();
+  slice ref = main.slice_refs_empty?() ? null() : main.preload_ref().begin_parse();
+  tuple bt = null();
+  builder current = begin_cell();
+
+  while (true) {
+    int main_bits = main.slice_bits();
+    if (main_bits < find_size) {
+      if (main.slice_refs_empty?()) {
+        (bt, current) = store(bt, current, main.preload_uint(main_bits), main_bits);
+        return finish(bt, current);
+      } elseif (main_bits == 0) {
+        main = ref;
+        ref = main.slice_refs_empty?() ? null() : main.preload_ref().begin_parse();
+      } else {
+        int from_ref = find_size - main_bits;
+        int ref_bits = ref.slice_bits();
+        if (ref_bits < from_ref) {
+          (bt, current) = store(bt, current, main.preload_uint(main_bits), main_bits);
+          (bt, current) = store(bt, current, ref.preload_uint(ref_bits), ref_bits);
+          return finish(bt, current);
+        }
+        int x = main.preload_uint(main_bits) << from_ref;
+        x |= ref.preload_uint(from_ref);
+        if (x == find) {
+          (bt, current) = store(bt, current, replace, replace_size);
+          main~skip_bits(main_bits);
+          ref~skip_bits(from_ref);
+        } else {
+          (bt, current) = store(bt, current, main~load_uint(1), 1);
+        }
+      }
+    } else {
+      int x = main.preload_uint(find_size);
+      if (x == find) {
+        (bt, current) = store(bt, current, replace, replace_size);
+        main~skip_bits(find_size);
+      } else {
+        (bt, current) = store(bt, current, main~load_uint(1), 1);
+      }
+    }
+  }
+
+  return begin_cell().end_cell();
+}
