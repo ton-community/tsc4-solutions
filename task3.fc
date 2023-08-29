@@ -1,5 +1,3 @@
-#include "imports/stdlib.fc";
-
 {- 
   TASK 3 - Find and replace binary substring
   Binary string is represented as a cell linked list: string splitted to chunks,
