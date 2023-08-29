@@ -1,0 +1,73 @@
+{-
+  TASK 2 - Matrix multiplier
+  Write the method that multiplies one matrix by another.
+  The 1st and 2nd parameter of the function will contain
+  a matrix implemented using tuples (eg: [[1,2], [3,4]]).
+  Matrices can be of different sizes, ranging from 4x4
+  up to 32x32.
+  Matrix can be rectangular where matrixA must to be of size n*m & matrixB of size m*p.
+  After calculating the result matrix, the function should return final result (as tuple).
+-}
+
+() recv_internal() {
+}
+
+(int) tlen (tuple t) asm "TLEN";
+forall X -> X null() asm "PUSHNULL";
+forall X -> X tpop(tuple t) asm "TPOP";
+tuple empty_tuple() asm "NIL";
+
+forall X -> (tuple) tset (tuple tpl, int index, X value) {
+  tuple rtpl = empty_tuple();
+  int lena = tlen(tpl);
+  int c = 0;
+  while (c < lena) {
+    int action = tpl.at(c);
+    if (c != index) {
+      rtpl~tpush(action);
+    } else {
+      rtpl~tpush(value);
+    }
+    c += 1;  
+  }
+  return (rtpl);
+}
+
+(tuple) tempty (int m, int n) {
+  tuple rtpl = empty_tuple();
+  tuple rtpl_n = empty_tuple();
+  int c = 0;
+  while (c < m) {
+    rtpl~tpush(0);
+    c += 1;  
+  }
+  c = 0;
+  while (c < n) {
+    rtpl_n~tpush(rtpl);
+    c += 1;  
+  }
+  return (rtpl_n);
+}
+
+;; testable
+(tuple) matrix_multiplier(tuple matrixA, tuple matrixB) method_id {
+  int x = matrixA.tlen();
+  int z = matrixA.at(0).tlen();
+  int y = matrixB.at(0).tlen();
+  tuple res = tempty(y, x); 
+  
+  int i = 0;
+  while (i < x) {
+    int j = 0;
+    while (j < y) {
+      int k = 0;
+      while (k < z) {
+        res = tset(res, i, tset(res.at(i), j, res.at(i).at(j) + matrixA.at(i).at(k) * matrixB.at(k).at(j)));
+        k = k + 1;
+      }
+      j = j + 1;
+    }
+    i = i + 1;
+  }
+  return res;
+}
