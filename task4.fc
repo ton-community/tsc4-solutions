@@ -1,0 +1,82 @@
+{-
+  TASK 4 - Caesar Cipher
+  Implement a Caesar cipher encryption and decryption functions.
+  The input is a string (https://docs.ton.org/develop/smart-contracts/guidelines/internal-messages#simple-message-with-comment)
+  where the text is encrypted in a cell (after 32bit 00000000 prefix flag), the algorithm rotates the characters and the last ASCII
+  character should go to the beginning. Return new text encoded in cell.
+-}
+
+() recv_internal() {
+}
+
+builder store_builder_ref(builder to, builder from) asm "STBREFR";
+
+
+int ceasar_shift(int word, int shift) {
+  if ((word >= 97) & (word <= 122)) {
+    return 97 + (((word - 97) + shift) % 26);
+  } elseif ((word >= 65) & (word <= 90)) {
+    return 65 + (((word - 65) + shift) % 26);
+  }
+  return word;
+}
+
+(tuple, builder) store(tuple bt, builder current, int x, int sz) {
+  if (current.builder_bits() + sz <= 1023) {
+    return (bt, current.store_uint(x, sz));
+  }
+
+  bt = cons(current, bt);
+  current = begin_cell().store_uint(x, sz);
+  return (bt, current);
+}
+
+cell finish(tuple bt, builder current) {
+  if (current.builder_bits() == 0) {
+    if (null?(bt)) {
+      return current.end_cell();
+    }
+
+    (current, bt) = uncons(bt);
+  }
+
+  builder tree = current;
+  while (~ null?(bt)) {
+    (current, bt) = uncons(bt);
+    tree = current.store_builder_ref(tree);
+  }
+
+  return tree.end_cell();
+}
+
+cell do_ceasar(cell text, int shift) {
+  var cs = text.begin_parse();
+  var op = cs~load_uint(32);
+
+  throw_unless(0xff, op == 0);
+  
+  tuple res = null();
+  builder cur = begin_cell();
+  cur = cur.store_uint(0, 32);
+
+  while (~ cs.slice_empty?()) {
+    if (cs.slice_bits() == 0) {
+      cs = cs~load_ref().begin_parse();
+    }
+
+    var next = cs~load_uint(8);
+    cur = res~store(cur, ceasar_shift(next, shift), 8);
+  }
+
+  return finish(res, cur);
+}
+
+;; testable
+cell caesar_cipher_encrypt(int shift, cell text) method_id {
+  return do_ceasar(text,shift);
+}
+
+;; testable
+(cell) caesar_cipher_decrypt(int shift, cell text) method_id {
+  return do_ceasar(text, - shift);
+}
