@@ -14,20 +14,19 @@ forall X -> (tuple, ()) push_back (tuple tail, X head) asm "CONS";
 forall X -> (tuple, (X)) pop_back (tuple t) asm "UNCONS";
 forall X -> X null() asm "PUSHNULL";
 
-(cell) find_branch_by_hash (int hash, cell tree) method_id {
+(cell) find_branch_by_hash(int hash, cell tree) method_id {
   tuple stack = null();
   stack~push_back(tree);
-  var result = begin_cell().end_cell();
   while (~ stack.is_null()) {
-    cell s = stack~pop_back();
-    int s_hash = s.cell_hash();
-    if (s_hash == hash){
-      result = s;
+    cell cs = stack~pop_back();
+    if (hash == cs.cell_hash()) {
+      return cs;
     }
-    slice s_unpacked = s.begin_parse();
-    repeat (s_unpacked.slice_refs()) {
-      stack~push_back(s_unpacked~load_ref());
+    slice s = cs.begin_parse();
+    repeat (s.slice_refs()) {
+      stack~push_back(s~load_ref());
     }
   }
-  return result;
+
+  return begin_cell().end_cell();
 }
